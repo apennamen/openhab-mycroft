@@ -1,1 +1,1 @@
-(?P<Command>ouvre|ferme) le (?P<Item>.*)
+(?P<Command>ouvre|ferme) (le|les|) (?P<Item>.*)
