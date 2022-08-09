@@ -73,9 +73,9 @@ class openHABSkill(MycroftSkill):
 		self.handle_websettings_update()
 		
 		if self.url is not None:
-		    self.getTaggedItems()
+			self.getTaggedItems()
 		else:
-		    self.speak_dialog('ConfigurationNeeded')
+			self.speak_dialog('ConfigurationNeeded')
 
 		refresh_tagged_items_intent = IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword").build()
 		self.register_intent(refresh_tagged_items_intent, self.handle_refresh_tagged_items_intent)
@@ -108,7 +108,7 @@ class openHABSkill(MycroftSkill):
 			self.url = "http://%s:%s/rest" % (self.get_config('host'), self.get_config('port'))
 			self.getTaggedItems()
 		else:
-		    self.url = None
+			self.url = None
 
 	def getTaggedItems(self):
 		#find all the items tagged Lighting and Switchable from openHAB
@@ -172,7 +172,7 @@ class openHABSkill(MycroftSkill):
 					bestScore = score
 					bestItem = itemName
 		except KeyError:
-                    pass
+			pass
 
 		return bestItem
 
