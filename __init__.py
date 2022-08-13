@@ -195,21 +195,17 @@ class openHABSkill(MycroftSkill):
 	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item"))
 	def handle_openclose_command_intent(self, message):
 		command = message.data.get('Command')
-		value = message.data.get('Value')
 		messageItem = message.data.get('Item')
-  
-		LOGGER.debug("Value: %s" % (value))
 
-		ohCommand = command
 		if self.voc_match(command, 'Close'):
-			ohCommand = "down"
+			ohStatus = 100
 		elif self.voc_match(command, 'Open'):
-			ohCommand = "up"
+			ohStatus = 0
 
 		ohItem = self.findItemName(self.shutterItemsDic, messageItem)
 
 		if ohItem != None:
-			statusCode = self.sendCommandToItem(ohItem, ohCommand.upper())
+			statusCode = self.sendStatusToItem(ohItem, ohStatus)
 			if statusCode == 200:
 				self.speak_dialog('OpenClose', {'command': command, 'item': messageItem})
 			elif statusCode == 404:
