@@ -69,6 +69,9 @@ class openHABSkill(MycroftSkill):
 			self.getTaggedItems()
 		else:
 			self.speak_dialog('ConfigurationNeeded')
+   
+		self.register_entity_file('item.entity')
+		self.register_entity_file('value.entity')
 
 		self.settings_change_callback = self.handle_websettings_update
 
@@ -152,9 +155,9 @@ class openHABSkill(MycroftSkill):
 
 	@intent_handler('shutter.open.intent')
 	def handle_shutter_open_intent(self, message):
-		messageItem = message.data.get('shutterItem')
+		messageItem = message.data.get('item')
 		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = message.data.get('shutterValue')
+		messageValue = message.data.get('value')
 		LOGGER.debug("WantedValue: %s" % (messageValue))
   
 		if messageItem is None:
