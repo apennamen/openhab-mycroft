@@ -150,17 +150,20 @@ class openHABSkill(MycroftSkill):
 		dictLenght =len(self.shutterItemsDic)
 		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
-	@intent_handler(IntentBuilder("SetStatus_Intent").require("Command").require("Value").require("Percentage").require("Item"))
-	def handle_set_status_intent(self, message):
-		messageItem = message.data.get('Item')
+	@intent_handler('shutter.open.intent')
+	def handle_shutter_open_intent(self, message):
+		messageItem = message.data.get('shutterItem')
 		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = int(message.data.get('Value'))
+		messageValue = int(message.data.get('shutterValue'))
 		LOGGER.debug("WantedValue: %s" % (messageValue))
   
-		if messageItem == None:
+		if messageItem is None:
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 			return
+
+		if messageValue is None:
+			messageValue = 0
 		
 		self.currStatusItemsDic = dict()
 
@@ -184,32 +187,6 @@ class openHABSkill(MycroftSkill):
 					self.speak_dialog('CloseToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
 			elif statusCode == 404:
 				LOGGER.error("Some issues with the command execution! Item not found")
-				self.speak_dialog('ItemNotFoundError')
-			else:
-				LOGGER.error("Some issues with the command execution!")
-				self.speak_dialog('CommunicationError')
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-
-	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item"))
-	def handle_openclose_command_intent(self, message):
-		command = message.data.get('Command')
-		messageItem = message.data.get('Item')
-
-		if self.voc_match(command, 'Close'):
-			ohStatus = 100
-		elif self.voc_match(command, 'Open'):
-			ohStatus = 0
-
-		ohItem = self.findItemName(self.shutterItemsDic, messageItem)
-
-		if ohItem != None:
-			statusCode = self.sendStatusToItem(ohItem, ohStatus)
-			if statusCode == 200 or statusCode == 202:
-				self.speak_dialog('OpenClose', {'command': command, 'item': messageItem})
-			elif statusCode == 404:
-				LOGGER.error("Some issues with the command execution!. Item not found")
 				self.speak_dialog('ItemNotFoundError')
 			else:
 				LOGGER.error("Some issues with the command execution!")
