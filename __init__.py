@@ -150,7 +150,7 @@ class openHABSkill(MycroftSkill):
 		dictLenght =len(self.shutterItemsDic)
 		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
-	@intent_handler(IntentBuilder("SetStatus_Intent").require("Command").require("Percentage").require("Item"))
+	@intent_handler(IntentBuilder("SetStatus_Intent").require("Command").require("Value").require("Percentage").require("Item"))
 	def handle_set_status_intent(self, message):
 		messageItem = message.data.get('Item')
 		LOGGER.debug("Item: %s" % (messageItem))
