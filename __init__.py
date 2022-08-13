@@ -54,13 +54,6 @@ class openHABSkill(MycroftSkill):
 		self.polling_headers = {"Accept": "application/json"}
 
 		self.url = None
-		self.lightingItemsDic = dict()
-		self.switchableItemsDic = dict()
-		self.currentTempItemsDic = dict()
-		self.currentHumItemsDic = dict()
-		self.currentThermostatItemsDic = dict()
-		self.targetTemperatureItemsDic = dict()
-		self.homekitHeatingCoolingModeDic = dict()
 		self.shutterItemsDic = dict()
 
 	def initialize(self):
@@ -81,26 +74,14 @@ class openHABSkill(MycroftSkill):
 		refresh_tagged_items_intent = IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword").build()
 		self.register_intent(refresh_tagged_items_intent, self.handle_refresh_tagged_items_intent)
 
-		onoff_status_intent = IntentBuilder("OnOff_StatusIntent").require("OnOffStatusKeyword").require("Command").require("Item").build()
-		self.register_intent(onoff_status_intent, self.handle_onoff_status_intent)
-
-		dimmer_status_intent = IntentBuilder("Dimmer_StatusIntent").require("DimmerStatusKeyword").require("Item").optionally("BrightPercentage").build()
-		self.register_intent(dimmer_status_intent, self.handle_dimmer_status_intent)
-
-		#what_status_intent = IntentBuilder("What_StatusIntent").require("WhatStatusKeyword").require("Item").require("RequestType").build()
-		#self.register_intent(what_status_intent, self.handle_what_status_intent)
-		self.register_entity_file('item.entity')
-		self.register_entity_file('requesttype.entity')
-		self.register_intent_file('what.status.intent',self.handle_what_status_intent)
-
-		setTemp_status_intent = IntentBuilder("SetTemp_StatusIntent").require("ThermostatStatusKeyword").require("Item").require("TempValue").build()
-		self.register_intent(setTemp_status_intent, self.handle_setTemp_status_intent)
+		what_status_intent = IntentBuilder("What_StatusIntent").require("WhatStatusKeyword").require("Item").require("RequestType").build()
+		self.register_intent(what_status_intent, self.handle_what_status_intent)
 
 		list_items_intent = IntentBuilder("ListItemsIntent").require("ListItemsKeyword").build()
 		self.register_intent(list_items_intent, self.handle_list_items_intent)
 
-		openclose_status_intent = IntentBuilder("OpenClose_StatusIntent").require("Command").require("Item").build()
-		self.register_intent(openclose_status_intent, self.handle_openclose_status_intent)
+		openclose_command_intent = IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item").build()
+		self.register_intent(openclose_command_intent, self.handle_openclose_command_intent)
 
 		self.settings_change_callback = self.handle_websettings_update
 
@@ -119,13 +100,6 @@ class openHABSkill(MycroftSkill):
 		#supported tags: Lighting, Switchable, CurrentTemperature, Shutter...
 		#the labeled items are stored in dictionaries
 
-		self.lightingItemsDic = {}
-		self.switchableItemsDic = {}
-		self.currentTempItemsDic = {}
-		self.currentHumItemsDic = {}
-		self.currentThermostatItemsDic = {}
-		self.targetTemperatureItemsDic = {}
-		self.homekitHeatingCoolingModeDic = {}
 		self.shutterItemsDic = {}
 
 		if self.url == None:
@@ -139,21 +113,7 @@ class openHABSkill(MycroftSkill):
 				if req.status_code == 200:
 					json_response = req.json()
 					for x in range(0,len(json_response)):
-						if ("Lighting" in json_response[x]['tags']):
-							self.lightingItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("Switchable" in json_response[x]['tags']):
-							self.switchableItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("CurrentTemperature" in json_response[x]['tags']):
-							self.currentTempItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("CurrentHumidity" in json_response[x]['tags']):
-							self.currentHumItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("Thermostat" in json_response[x]['tags']):
-							self.currentThermostatItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("TargetTemperature" in json_response[x]['tags']):
-							self.targetTemperatureItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("homekit:HeatingCoolingMode" in json_response[x]['tags']):
-							self.homekitHeatingCoolingModeDic.update({json_response[x]['name']: json_response[x]['label']})
-						elif ("Shutter" in json_response[x]['tags']):
+						if ("Shutter" in json_response[x]['tags']):
 							self.shutterItemsDic.update({json_response[x]['name']: json_response[x]['label']})
 						else:
 							pass
@@ -192,14 +152,7 @@ class openHABSkill(MycroftSkill):
 			return "%s: %s" % (typeStr, ', '.join(list(itemsDict.values())))
 
 	def handle_list_items_intent(self, message):
-		msg = self.getItemsFromDict("Lights", self.lightingItemsDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Switches", self.switchableItemsDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Current Temperature", self.currentTempItemsDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Current Humidity", self.currentHumItemsDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Thermostat", self.currentThermostatItemsDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Target Temperature", self.targetTemperatureItemsDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Homekit Heating and Cooling", self.homekitHeatingCoolingModeDic) + "\n"
-		msg = msg.strip() + ' ' + self.getItemsFromDict("Shutters", self.shutterItemsDic)
+		msg = self.getItemsFromDict("Shutters", self.shutterItemsDic)
 		self.speak_dialog('FoundItems', {'items': msg.strip()})
 
 	def handle_refresh_tagged_items_intent(self, message):
@@ -209,35 +162,7 @@ class openHABSkill(MycroftSkill):
 		dictLenght = str(len(self.lightingItemsDic) + len(self.switchableItemsDic) + len(self.currentTempItemsDic) + len(self.currentHumItemsDic) + len(self.currentThermostatItemsDic) + len(self.targetTemperatureItemsDic) + len(self.homekitHeatingCoolingModeDic) + len(self.shutterItemsDic))
 		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
-	def handle_onoff_status_intent(self, message):
-		command = message.data.get('Command')
-		messageItem = message.data.get('Item')
-
-		#We have to find the item to update from our dictionaries
-		self.lightingSwitchableItemsDic = dict()
-		self.lightingSwitchableItemsDic.update(self.lightingItemsDic)
-		self.lightingSwitchableItemsDic.update(self.switchableItemsDic)
-
-		ohItem = self.findItemName(self.lightingSwitchableItemsDic, messageItem)
-
-		if ohItem != None:
-			if (command != "on") and (command != "off"):
-				self.speak_dialog('ErrorDialog')
-			else:
-				statusCode = self.sendCommandToItem(ohItem, command.upper())
-				if statusCode == 200:
-					self.speak_dialog('StatusOnOff', {'command': command, 'item': messageItem})
-				elif statusCode == 404:
-					LOGGER.error("Some issues with the command execution!. Item not found")
-					self.speak_dialog('ItemNotFoundError')
-				else:
-					LOGGER.error("Some issues with the command execution!")
-					self.speak_dialog('CommunicationError')
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-
-	def handle_openclose_status_intent(self, message):
+	def handle_openclose_command_intent(self, message):
 		command = message.data.get('Command')
 		messageItem = message.data.get('Item')
 
@@ -263,134 +188,33 @@ class openHABSkill(MycroftSkill):
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 
-	def handle_dimmer_status_intent(self, message):
-		command = message.data.get('DimmerStatusKeyword')
-		messageItem = message.data.get('Item')
-		brightValue = message.data.get('BrightPercentage', None)
-
-		statusCode = 0
-		newBrightValue = 0
-
-		ohItem = self.findItemName(self.lightingItemsDic, messageItem)
-
-		if ohItem != None:
-			#if ((command == "set") or (command == "imposta") or (command == "setze") or (command == "pone")):
-			if self.voc_match(command, 'Set'):
-				if ((brightValue == None) or (int(brightValue) < 0) or (int(brightValue) > 100)):
-					self.speak_dialog('ErrorDialog')
-				else:
-					statusCode = self.sendCommandToItem(ohItem, brightValue)
-			else:
-				#find current item statusCode
-				state = self.getCurrentItemStatus(ohItem)
-				if (state != None):
-					#dim or brighten the value
-					curBrightList = state.split(',')
-					curBright = int(curBrightList[len(curBrightList)-1])
-
-					if(brightValue == None):
-						brightValue = "10"
-
-					#if ((command == "dim") or (command == "abbassa") or (command == "dimme") or (command == "oscurece")):
-					if self.voc_match(command, 'Dim'):
-						newBrightValue = curBright-(int(brightValue))
-					else:
-						newBrightValue = curBright+(int(brightValue))
-
-					if (newBrightValue < 0):
-						newBrightValue = 0
-					elif (newBrightValue > 100):
-						newBrightValue = 100
-					else:
-						pass
-
-					#send command to item
-					statusCode = self.sendCommandToItem(ohItem, str(newBrightValue))
-				else:
-					pass
-
-			if statusCode == 200:
-				self.speak_dialog('StatusDimmer', {'item': messageItem})
-			elif statusCode == 404:
-				LOGGER.error("Some issues with the command execution!. Item not found")
-				self.speak_dialog('ItemNotFoundError')
-			else:
-				LOGGER.error("Some issues with the command execution!")
-				self.speak_dialog('CommunicationError')
-
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-
 	def handle_what_status_intent(self, message):
-
 		messageItem = message.data.get('item')
 		LOGGER.debug("Item: %s" % (messageItem))
 		requestType = message.data.get('requesttype')
 		LOGGER.debug("Request Type: %s" % (requestType))
 		
-		unitOfMeasure = self.translate('Degree')
-		infoType = self.translate('Temperature')
-		
 		self.currStatusItemsDic = dict()
 
-		if self.voc_match(requestType, 'Temperature'):
-			self.currStatusItemsDic.update(self.currentTempItemsDic)
-		elif self.voc_match(requestType, 'Humidity'):
-			unitOfMeasure = self.translate('Percentage')
-			infoType = self.translate('Humidity')
-			self.currStatusItemsDic.update(self.currentHumItemsDic)
-		elif self.voc_match(requestType, 'Status'):
+		if self.voc_match(requestType, 'Status'):
 			infoType = self.translate('Status')
-			unitOfMeasure = ""
-			self.currStatusItemsDic.update(self.switchableItemsDic)
+			unitOfMeasure = self.translate('Percentage')
+			self.currStatusItemsDic.update(self.shutterItemsDic)
 		else:
-			self.currStatusItemsDic.update(self.targetTemperatureItemsDic)
+			LOGGER.error("Request type not found!")
+			self.speak_dialog('ItemNotFoundError')
+			return
 
 		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
 
 		if ohItem != None:
 			state = self.getCurrentItemStatus(ohItem)
-			self.speak_dialog('TempHumStatus', {'item': messageItem, 'temp_hum': infoType, 'temp_hum_val': state, 'units_of_measurement': unitOfMeasure})
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-
-	def handle_setTemp_status_intent(self, message):
-		command = message.data.get('ThermostatStatusKeyword')
-		messageItem = message.data.get('Item')
-		tempVal = message.data.get('TempValue')
-
-		statusCode = 0
-		newTempValue = 0
-
-		ohItem = self.findItemName(self.targetTemperatureItemsDic, messageItem)
-
-		if ohItem != None:
-			if self.voc_match(command, 'Regulate'):
-				statusCode = self.sendCommandToItem(ohItem, tempVal)
-				newTempValue = tempVal
+			if state == 0:
+				self.speak_dialog('OpenStatus', {'item': messageItem})
+			elif state == 100:
+				self.speak_dialog('CloseStatus', {'item': messageItem})
 			else:
-				state = self.getCurrentItemStatus(ohItem)
-				if ((state != None) and (state.isdigit())):
-					if self.voc_match(command, 'Increase'):
-						newTempValue = int(state)+(int(tempVal))
-					else:
-						newTempValue = int(state)-(int(tempVal))
-
-					statusCode = self.sendCommandToItem(ohItem, str(newTempValue))
-				else:
-					pass
-
-			if statusCode == 200:
-				self.speak_dialog('ThermostatStatus', {'item': messageItem, 'temp_val': str(newTempValue)})
-			elif statusCode == 404:
-				LOGGER.error("Some issues with the command execution! Item not found")
-				self.speak_dialog('ItemNotFoundError')
-			else:
-				LOGGER.error("Some issues with the command execution!")
-				self.speak_dialog('CommunicationError')
-
+				self.speak_dialog('ClosePercentageStatus', {'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
 		else:
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
