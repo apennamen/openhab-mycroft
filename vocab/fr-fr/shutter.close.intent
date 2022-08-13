@@ -1,1 +1,2 @@
-(baisse|ferme) le {ShutterItem} à {ShutterValue} (pourcents|%|pourcent)
+(baisse|ferme) le {item} à {value} (pourcents|%|pourcent)
+(baisse|ferme) le {item}

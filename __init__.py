@@ -170,26 +170,56 @@ class openHABSkill(MycroftSkill):
 		else:
 			messageValue = int(messageValue)
 		
+		return self.new_method(messageItem, messageValue)
+
+	@intent_handler('shutter.close.intent')
+	def handle_shutter_close_intent(self, message):
+		messageItem = message.data.get('item')
+		LOGGER.debug("Item: %s" % (messageItem))
+		messageValue = message.data.get('value')
+		LOGGER.debug("WantedValue: %s" % (messageValue))
+  
+		if messageItem is None:
+			LOGGER.error("Item not found!")
+			self.speak_dialog('ItemNotFoundError')
+			return
+
+		if messageValue is None:
+			messageValue = 100
+		else:
+			messageValue = int(messageValue)
+		
+		return self.new_method(messageItem, messageValue)
+
+	def move_shutter_to_value(self, item, value):
 		self.currStatusItemsDic = dict()
 
 		unitOfMeasure = self.translate('Percentage')
 		self.currStatusItemsDic.update(self.shutterItemsDic)
 
-		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
+		ohItem = self.findItemName(self.currStatusItemsDic, item)
 
 		if ohItem != None:
-			currentItemStatus = self.getCurrentItemStatus(ohItem)
+			currentItemStatus = int(self.getCurrentItemStatus(ohItem))
 			LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
-			if currentItemStatus == messageValue:
-				self.speak_dialog('AlreadyAtState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+
+			# Nothing to do, we simply inform
+			if currentItemStatus == value:
+				if currentItemStatus == 0:
+					self.speak_dialog('AlreadyOpen', {'item': item})
+				if currentItemStatus == 100:
+					self.speak_dialog('AlreadyClose', {'item': item})
+				else:
+					self.speak_dialog('AlreadyAtValue', {'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
 				return
 
-			statusCode = self.sendStatusToItem(ohItem, messageValue)
+			# We update shutter to wanted value
+			statusCode = self.sendStatusToItem(ohItem, value)
 			if statusCode == 200 or statusCode == 202:
-				if currentItemStatus > messageValue:
-					self.speak_dialog('OpenToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+				if currentItemStatus > value:
+					self.speak_dialog('OpenToValue', {'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
 				else:
-					self.speak_dialog('CloseToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+					self.speak_dialog('CloseToValue', {'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
 			elif statusCode == 404:
 				LOGGER.error("Some issues with the command execution! Item not found")
 				self.speak_dialog('ItemNotFoundError')
