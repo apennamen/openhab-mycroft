@@ -209,9 +209,51 @@ class openHABSkill(MycroftSkill):
 			self.speak_dialog('ItemNotFoundError')
 			return False
 
-	def sendStatusToItem(self, ohItem, command):
+	@intent_handler(IntentBuilder("SetStatus_Intent").require("Command").require("Value").require("Item"))
+	def handle_set_status_intent(self, message):
+		messageItem = message.data.get('Item')
+		LOGGER.debug("Item: %s" % (messageItem))
+		messageValue = message.data.get('Value')
+		LOGGER.debug("WantedValue: %s" % (messageValue))
+  
+		if messageItem == None:
+			LOGGER.error("Item not found!")
+			self.speak_dialog('ItemNotFoundError')
+			return
+		
+		self.currStatusItemsDic = dict()
+
+		unitOfMeasure = self.translate('Percentage')
+		self.currStatusItemsDic.update(self.shutterItemsDic)
+
+		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
+
+		if ohItem != None:
+			currentItemStatus = self.getCurrentItemStatus(ohItem)
+			LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
+			if currentItemStatus == messageValue:
+				self.speak_dialog('AlreadyAtState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+				return
+
+			statusCode = self.sendStatusToItem(ohItem, messageValue)
+			if statusCode == 200:
+				if currentItemStatus > messageValue:
+					self.speak_dialog('OpenToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+				else:
+					self.speak_dialog('CloseToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+			elif statusCode == 404:
+				LOGGER.error("Some issues with the command execution! Item not found")
+				self.speak_dialog('ItemNotFoundError')
+			else:
+				LOGGER.error("Some issues with the command execution!")
+				self.speak_dialog('CommunicationError')
+		else:
+			LOGGER.error("Item not found!")
+			self.speak_dialog('ItemNotFoundError')
+
+	def sendStatusToItem(self, ohItem, status):
 		requestUrl = self.url+"/items/%s/state" % (ohItem)
-		req = requests.put(requestUrl, data=command, headers=self.command_headers)
+		req = requests.put(requestUrl, data=status, headers=self.command_headers)
 
 		return req.status_code
 
