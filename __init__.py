@@ -16,7 +16,7 @@
 from os.path import dirname
 
 from adapt.intent import IntentBuilder
-from mycroft import FallbackSkill
+from mycroft import MycroftSkill, intent_handler
 from mycroft.util.log import getLogger
 from rapidfuzz import fuzz
 
@@ -44,7 +44,7 @@ __author__ = 'mortommy'
 
 LOGGER = getLogger(__name__)
 
-class openHABSkill(FallbackSkill):
+class openHABSkill(MycroftSkill):
 
 	def __init__(self):
 		super(openHABSkill, self).__init__(name="openHABSkill")
@@ -57,8 +57,6 @@ class openHABSkill(FallbackSkill):
 		self.shutterItemsDic = dict()
 
 	def initialize(self):
-		#use openhab skill as low priority fallback skill
-		self.register_fallback(self.handle_what_status_intent, 10)
 		supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
 
 		if self.lang not in supported_languages:
@@ -72,11 +70,10 @@ class openHABSkill(FallbackSkill):
 		else:
 			self.speak_dialog('ConfigurationNeeded')
 
+		self.register_entity_file('item.entity')
+
 		refresh_tagged_items_intent = IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword").build()
 		self.register_intent(refresh_tagged_items_intent, self.handle_refresh_tagged_items_intent)
-
-		what_status_intent = IntentBuilder("What_StatusIntent").require("WhatStatusKeyword").require("Item").require("RequestType").build()
-		self.register_intent(what_status_intent, self.handle_what_status_intent)
 
 		list_items_intent = IntentBuilder("ListItemsIntent").require("ListItemsKeyword").build()
 		self.register_intent(list_items_intent, self.handle_list_items_intent)
@@ -189,21 +186,19 @@ class openHABSkill(FallbackSkill):
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 
+	@intent_handler('what.status.intent')
 	def handle_what_status_intent(self, message):
 		messageItem = message.data.get('item')
 		LOGGER.debug("Item: %s" % (messageItem))
-		requestType = message.data.get('requesttype')
-		LOGGER.debug("Request Type: %s" % (requestType))
-		
-		self.currStatusItemsDic = dict()
-
-		if self.voc_match(requestType, 'Status'):
-			unitOfMeasure = self.translate('Percentage')
-			self.currStatusItemsDic.update(self.shutterItemsDic)
-		else:
-			LOGGER.error("Request type not found!")
+  
+		if messageItem == None:
+			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 			return False
+		
+		self.currStatusItemsDic = dict()
+		unitOfMeasure = self.translate('Percentage')
+		self.currStatusItemsDic.update(self.shutterItemsDic)
 
 		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
 
@@ -253,10 +248,6 @@ class openHABSkill(FallbackSkill):
 
 	def stop(self):
 		pass
-
-	def shutdown(self):
-		self.remove_fallback(self.handle_what_status_intent)
-		super(openHABSkill, self).shutdown()
 
 def create_skill():
     return openHABSkill()
