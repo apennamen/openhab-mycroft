@@ -70,16 +70,9 @@ class openHABSkill(MycroftSkill):
 		else:
 			self.speak_dialog('ConfigurationNeeded')
 
+		# Using Padatious for what status intent
 		self.register_entity_file('item.entity')
-
-		refresh_tagged_items_intent = IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword").build()
-		self.register_intent(refresh_tagged_items_intent, self.handle_refresh_tagged_items_intent)
-
-		list_items_intent = IntentBuilder("ListItemsIntent").require("ListItemsKeyword").build()
-		self.register_intent(list_items_intent, self.handle_list_items_intent)
-
-		openclose_command_intent = IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item").build()
-		self.register_intent(openclose_command_intent, self.handle_openclose_command_intent)
+		self.register_intent_file('what.status.intent', self.handle_what_status_intent)
 
 		self.settings_change_callback = self.handle_websettings_update
 
@@ -149,17 +142,20 @@ class openHABSkill(MycroftSkill):
 		else:
 			return "%s: %s" % (typeStr, ', '.join(list(itemsDict.values())))
 
+	@intent_handler(IntentBuilder("ListItemsIntent").require("ListItemsKeyword"))
 	def handle_list_items_intent(self, message):
 		msg = self.getItemsFromDict("Shutters", self.shutterItemsDic)
 		self.speak_dialog('FoundItems', {'items': msg.strip()})
 
+	@intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
 	def handle_refresh_tagged_items_intent(self, message):
 		#to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
 
 		self.getTaggedItems()
-		dictLenght = str(len(self.lightingItemsDic) + len(self.switchableItemsDic) + len(self.currentTempItemsDic) + len(self.currentHumItemsDic) + len(self.currentThermostatItemsDic) + len(self.targetTemperatureItemsDic) + len(self.homekitHeatingCoolingModeDic) + len(self.shutterItemsDic))
+		dictLenght =len(self.shutterItemsDic)
 		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
+	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item"))
 	def handle_openclose_command_intent(self, message):
 		command = message.data.get('Command')
 		messageItem = message.data.get('Item')
@@ -186,7 +182,6 @@ class openHABSkill(MycroftSkill):
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 
-	@intent_handler('what.status.intent')
 	def handle_what_status_intent(self, message):
 		messageItem = message.data.get('item')
 		LOGGER.debug("Item: %s" % (messageItem))
@@ -197,6 +192,7 @@ class openHABSkill(MycroftSkill):
 			return False
 		
 		self.currStatusItemsDic = dict()
+
 		unitOfMeasure = self.translate('Percentage')
 		self.currStatusItemsDic.update(self.shutterItemsDic)
 
