@@ -151,10 +151,13 @@ class openHABSkill(MycroftSkill):
 		dictLenght =len(self.shutterItemsDic)
 		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
-	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item"))
+	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item").require("Value"))
 	def handle_openclose_command_intent(self, message):
 		command = message.data.get('Command')
+		value = message.data.get('Value')
 		messageItem = message.data.get('Item')
+  
+		LOGGER.debug("Value: %s" % (value))
 
 		ohCommand = command
 		if self.voc_match(command, 'Close'):
