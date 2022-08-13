@@ -182,8 +182,9 @@ class openHABSkill(MycroftSkill):
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 
+	@intent_handler(IntentBuilder("WhatStatus_Intent").require("Status").require("Item"))
 	def handle_what_status_intent(self, message):
-		messageItem = message.data.get('item')
+		messageItem = message.data.get('Item')
 		LOGGER.debug("Item: %s" % (messageItem))
   
 		if messageItem == None:

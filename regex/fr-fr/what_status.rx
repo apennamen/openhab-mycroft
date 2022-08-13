@@ -1,1 +1,3 @@
-quel est (le|la|les|l') (?P<RequestType>état) (de|du|des) (?P<Item>.*)
+(quel|quelle) est (la|l') (?P<Status>état|position) (de|du|des) (?P<Item>.*)
+dans (quel|quelle) (?P<Status>état|position) est (le|la) (?P<Item>.*)
+
