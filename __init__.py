@@ -16,7 +16,7 @@
 from os.path import dirname
 
 from adapt.intent import IntentBuilder
-from mycroft.skills.core import MycroftSkill, intent_handler
+from mycroft import FallbackSkill
 from mycroft.util.log import getLogger
 from rapidfuzz import fuzz
 
@@ -44,7 +44,7 @@ __author__ = 'mortommy'
 
 LOGGER = getLogger(__name__)
 
-class openHABSkill(MycroftSkill):
+class openHABSkill(FallbackSkill):
 
 	def __init__(self):
 		super(openHABSkill, self).__init__(name="openHABSkill")
@@ -57,7 +57,8 @@ class openHABSkill(MycroftSkill):
 		self.shutterItemsDic = dict()
 
 	def initialize(self):
-
+		#use openhab skill as low priority fallback skill
+		self.register_fallback(self.handle_what_status_intent, 10)
 		supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
 
 		if self.lang not in supported_languages:
@@ -197,13 +198,12 @@ class openHABSkill(MycroftSkill):
 		self.currStatusItemsDic = dict()
 
 		if self.voc_match(requestType, 'Status'):
-			infoType = self.translate('Status')
 			unitOfMeasure = self.translate('Percentage')
 			self.currStatusItemsDic.update(self.shutterItemsDic)
 		else:
 			LOGGER.error("Request type not found!")
 			self.speak_dialog('ItemNotFoundError')
-			return
+			return False
 
 		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
 
@@ -215,9 +215,11 @@ class openHABSkill(MycroftSkill):
 				self.speak_dialog('CloseStatus', {'item': messageItem})
 			else:
 				self.speak_dialog('ClosePercentageStatus', {'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
+			return True
 		else:
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
+			return False
 
 	def sendStatusToItem(self, ohItem, command):
 		requestUrl = self.url+"/items/%s/state" % (ohItem)
@@ -251,6 +253,10 @@ class openHABSkill(MycroftSkill):
 
 	def stop(self):
 		pass
+
+	def shutdown(self):
+		self.remove_fallback(self.handle_what_status_intent)
+		super(openHABSkill, self).shutdown()
 
 def create_skill():
     return openHABSkill()
