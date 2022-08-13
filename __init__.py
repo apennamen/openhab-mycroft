@@ -146,12 +146,53 @@ class openHABSkill(MycroftSkill):
 	@intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
 	def handle_refresh_tagged_items_intent(self, message):
 		#to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
-
 		self.getTaggedItems()
 		dictLenght =len(self.shutterItemsDic)
 		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
-	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item").require("Value"))
+	@intent_handler(IntentBuilder("SetStatus_Intent").require("Command").require("Percentage").require("Item"))
+	def handle_set_status_intent(self, message):
+		messageItem = message.data.get('Item')
+		LOGGER.debug("Item: %s" % (messageItem))
+		messageValue = message.data.get('Value')
+		LOGGER.debug("WantedValue: %s" % (messageValue))
+  
+		if messageItem == None:
+			LOGGER.error("Item not found!")
+			self.speak_dialog('ItemNotFoundError')
+			return
+		
+		self.currStatusItemsDic = dict()
+
+		unitOfMeasure = self.translate('Percentage')
+		self.currStatusItemsDic.update(self.shutterItemsDic)
+
+		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
+
+		if ohItem != None:
+			currentItemStatus = self.getCurrentItemStatus(ohItem)
+			LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
+			if currentItemStatus == messageValue:
+				self.speak_dialog('AlreadyAtState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+				return
+
+			statusCode = self.sendStatusToItem(ohItem, messageValue)
+			if statusCode == 200:
+				if currentItemStatus > messageValue:
+					self.speak_dialog('OpenToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+				else:
+					self.speak_dialog('CloseToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
+			elif statusCode == 404:
+				LOGGER.error("Some issues with the command execution! Item not found")
+				self.speak_dialog('ItemNotFoundError')
+			else:
+				LOGGER.error("Some issues with the command execution!")
+				self.speak_dialog('CommunicationError')
+		else:
+			LOGGER.error("Item not found!")
+			self.speak_dialog('ItemNotFoundError')
+
+	@intent_handler(IntentBuilder("OpenClose_CommandIntent").require("Command").require("Item"))
 	def handle_openclose_command_intent(self, message):
 		command = message.data.get('Command')
 		value = message.data.get('Value')
@@ -211,48 +252,6 @@ class openHABSkill(MycroftSkill):
 			LOGGER.error("Item not found!")
 			self.speak_dialog('ItemNotFoundError')
 			return False
-
-	@intent_handler(IntentBuilder("SetStatus_Intent").require("Command").require("Value").require("Item"))
-	def handle_set_status_intent(self, message):
-		messageItem = message.data.get('Item')
-		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = message.data.get('Value')
-		LOGGER.debug("WantedValue: %s" % (messageValue))
-  
-		if messageItem == None:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-			return
-		
-		self.currStatusItemsDic = dict()
-
-		unitOfMeasure = self.translate('Percentage')
-		self.currStatusItemsDic.update(self.shutterItemsDic)
-
-		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
-
-		if ohItem != None:
-			currentItemStatus = self.getCurrentItemStatus(ohItem)
-			LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
-			if currentItemStatus == messageValue:
-				self.speak_dialog('AlreadyAtState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
-				return
-
-			statusCode = self.sendStatusToItem(ohItem, messageValue)
-			if statusCode == 200:
-				if currentItemStatus > messageValue:
-					self.speak_dialog('OpenToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
-				else:
-					self.speak_dialog('CloseToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
-			elif statusCode == 404:
-				LOGGER.error("Some issues with the command execution! Item not found")
-				self.speak_dialog('ItemNotFoundError')
-			else:
-				LOGGER.error("Some issues with the command execution!")
-				self.speak_dialog('CommunicationError')
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
 
 	def sendStatusToItem(self, ohItem, status):
 		requestUrl = self.url+"/items/%s/state" % (ohItem)

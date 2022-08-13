@@ -1,1 +1,1 @@
-(?P<Command>ouvre|lève|baisse|ferme) (le|la) (?P<Item>.*)( à (?P<Value>.*) (pourcent|pourcents|%)){0,1}
+(?P<Command>ouvre|lève|baisse|ferme) (le|la) (?P<Item>.*)
