@@ -170,7 +170,7 @@ class openHABSkill(MycroftSkill):
 		else:
 			messageValue = int(messageValue)
 		
-		return self.new_method(messageItem, messageValue)
+		return self.move_shutter_to_value(messageItem, messageValue)
 
 	@intent_handler('shutter.close.intent')
 	def handle_shutter_close_intent(self, message):
@@ -189,7 +189,7 @@ class openHABSkill(MycroftSkill):
 		else:
 			messageValue = int(messageValue)
 		
-		return self.new_method(messageItem, messageValue)
+		return self.move_shutter_to_value(messageItem, messageValue)
 
 	def move_shutter_to_value(self, item, value):
 		self.currStatusItemsDic = dict()
