@@ -201,9 +201,9 @@ class openHABSkill(MycroftSkill):
 
 		if ohItem != None:
 			state = self.getCurrentItemStatus(ohItem)
-			if state == 0:
+			if state == "0":
 				self.speak_dialog('OpenStatus', {'item': messageItem})
-			elif state == 100:
+			elif state == "100":
 				self.speak_dialog('CloseStatus', {'item': messageItem})
 			else:
 				self.speak_dialog('ClosePercentageStatus', {'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})

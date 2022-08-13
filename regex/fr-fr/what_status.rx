@@ -1,3 +1,2 @@
 (quel|quelle) est (la|l') (?P<Status>état|position) (de|du|des) (?P<Item>.*)
-dans (quel|quelle) (?P<Status>état|position) est (le|la) (?P<Item>.*)
-
+(dans|en) (quel|quelle) (?P<Status>état|position) est (le|la) (?P<Item>.*)
