@@ -154,7 +154,7 @@ class openHABSkill(MycroftSkill):
 	def handle_shutter_open_intent(self, message):
 		messageItem = message.data.get('shutterItem')
 		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = int(message.data.get('shutterValue'))
+		messageValue = message.data.get('shutterValue')
 		LOGGER.debug("WantedValue: %s" % (messageValue))
   
 		if messageItem is None:
@@ -164,6 +164,8 @@ class openHABSkill(MycroftSkill):
 
 		if messageValue is None:
 			messageValue = 0
+		else:
+			messageValue = int(messageValue)
 		
 		self.currStatusItemsDic = dict()
 

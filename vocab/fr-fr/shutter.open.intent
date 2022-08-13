@@ -1,1 +1,2 @@
-(ouvre|lève) le {ShutterItem} à {ShutterValue} (pourcents|%|pourcent)
+(ouvre|lève) le {shutterItem} à {shutterValue} (pourcents|%|pourcent)
+(ouvre|lève) le {shutterItem}
