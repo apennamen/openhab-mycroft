@@ -70,10 +70,6 @@ class openHABSkill(MycroftSkill):
 		else:
 			self.speak_dialog('ConfigurationNeeded')
 
-		# Using Padatious for what status intent
-		self.register_entity_file('item.entity')
-		self.register_intent_file('what.status.intent', self.handle_what_status_intent)
-
 		self.settings_change_callback = self.handle_websettings_update
 
 	def get_config(self, key):
