@@ -44,255 +44,267 @@ __author__ = 'mortommy'
 
 LOGGER = getLogger(__name__)
 
+
 class openHABSkill(MycroftSkill):
 
-	def __init__(self):
-		super(openHABSkill, self).__init__(name="openHABSkill")
+    def __init__(self):
+        super(openHABSkill, self).__init__(name="openHABSkill")
 
-		self.command_headers = {"Content-type": "text/plain"}
+        self.command_headers = {"Content-type": "text/plain"}
 
-		self.polling_headers = {"Accept": "application/json"}
+        self.polling_headers = {"Accept": "application/json"}
 
-		self.url = None
-		self.shutterItemsDic = dict()
+        self.url = None
+        self.shutterItemsDic = dict()
 
-	def initialize(self):
-		supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
+    def initialize(self):
+        supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
 
-		if self.lang not in supported_languages:
-			self.log.warning("Unsupported language for " + self.name + ", shutting down skill.")
-			self.shutdown()
+        if self.lang not in supported_languages:
+            self.log.warning("Unsupported language for " +
+                             self.name + ", shutting down skill.")
+            self.shutdown()
 
-		self.handle_websettings_update()
-		
-		if self.url is not None:
-			self.getTaggedItems()
-		else:
-			self.speak_dialog('ConfigurationNeeded')
-   
-		self.register_entity_file('item.entity')
-		self.register_entity_file('value.entity')
+        self.handle_websettings_update()
 
-		self.settings_change_callback = self.handle_websettings_update
+        if self.url is not None:
+            self.getTaggedItems()
+        else:
+            self.speak_dialog('ConfigurationNeeded')
 
-	def get_config(self, key):
-		return (self.settings.get(key) or self.config_core.get('openHABSkill', {}).get(key))
+        self.register_entity_file('item.entity')
+        self.register_entity_file('value.entity')
 
-	def handle_websettings_update(self):
-		if self.get_config('host') is not None and self.get_config('port') is not None:
-			self.url = "http://%s:%s/rest" % (self.get_config('host'), self.get_config('port'))
-			self.getTaggedItems()
-		else:
-			self.url = None
+        self.settings_change_callback = self.handle_websettings_update
 
-	def getTaggedItems(self):
-		#find all the items tagged from openHAB.
-		#supported tags: Lighting, Switchable, CurrentTemperature, Shutter...
-		#the labeled items are stored in dictionaries
+    def get_config(self, key):
+        return (self.settings.get(key) or self.config_core.get('openHABSkill', {}).get(key))
 
-		self.shutterItemsDic = {}
+    def handle_websettings_update(self):
+        if self.get_config('host') is not None and self.get_config('port') is not None:
+            self.url = "http://%s:%s/rest" % (
+                self.get_config('host'), self.get_config('port'))
+            self.getTaggedItems()
+        else:
+            self.url = None
 
-		if self.url == None:
-			LOGGER.error("Configuration needed!")
-			self.speak_dialog('ConfigurationNeeded')
-		else:			
-			requestUrl = self.url+"/items?recursive=false"
+    def getTaggedItems(self):
+        # find all the items tagged from openHAB.
+        # supported tags: Lighting, Switchable, CurrentTemperature, Shutter...
+        # the labeled items are stored in dictionaries
 
-			try: 
-				req = requests.get(requestUrl, headers=self.polling_headers)
-				if req.status_code == 200:
-					json_response = req.json()
-					for x in range(0,len(json_response)):
-						if ("Shutter" in json_response[x]['tags']):
-							self.shutterItemsDic.update({json_response[x]['name']: json_response[x]['label']})
-						else:
-							pass
-				else:
-					LOGGER.error("Some issues with the command execution!")
-					self.speak_dialog('GetItemsListError')
+        self.shutterItemsDic = {}
 
-			except KeyError:
-						pass
-			except Exception:
-					LOGGER.error("Some issues with the command execution!")
-					self.speak_dialog('GetItemsListError')
+        if self.url == None:
+            LOGGER.error("Configuration needed!")
+            self.speak_dialog('ConfigurationNeeded')
+        else:
+            requestUrl = self.url+"/items?recursive=false"
 
-	def findItemName(self, itemDictionary, messageItem):
+            try:
+                req = requests.get(requestUrl, headers=self.polling_headers)
+                if req.status_code == 200:
+                    json_response = req.json()
+                    for x in range(0, len(json_response)):
+                        if ("Shutter" in json_response[x]['tags']):
+                            self.shutterItemsDic.update(
+                                {json_response[x]['name']: json_response[x]['label']})
+                        else:
+                            pass
+                else:
+                    LOGGER.error("Some issues with the command execution!")
+                    self.speak_dialog('GetItemsListError')
 
-		bestScore = 0
-		score = 0
-		bestItem = None
+            except KeyError:
+                pass
+            except Exception:
+                LOGGER.error("Some issues with the command execution!")
+                self.speak_dialog('GetItemsListError')
 
-		try:
-			for itemName, itemLabel in list(itemDictionary.items()):
-				score = fuzz.ratio(messageItem, itemLabel, score_cutoff=bestScore)
-				if score > bestScore:
-					bestScore = score
-					bestItem = itemName
-		except KeyError:
-			pass
+    def findItemName(self, itemDictionary, messageItem):
 
-		return bestItem
+        bestScore = 0
+        score = 0
+        bestItem = None
 
+        try:
+            for itemName, itemLabel in list(itemDictionary.items()):
+                score = fuzz.ratio(messageItem, itemLabel,
+                                   score_cutoff=bestScore)
+                if score > bestScore:
+                    bestScore = score
+                    bestItem = itemName
+        except KeyError:
+            pass
 
-	def getItemsFromDict(self, typeStr, itemsDict):
-		if len(itemsDict) == 0:
-			return ""
-		else:
-			return "%s: %s" % (typeStr, ', '.join(list(itemsDict.values())))
+        return bestItem
 
-	@intent_handler(IntentBuilder("ListItemsIntent").require("ListItemsKeyword"))
-	def handle_list_items_intent(self, message):
-		msg = self.getItemsFromDict("Shutters", self.shutterItemsDic)
-		self.speak_dialog('FoundItems', {'items': msg.strip()})
+    def getItemsFromDict(self, typeStr, itemsDict):
+        if len(itemsDict) == 0:
+            return ""
+        else:
+            return "%s: %s" % (typeStr, ', '.join(list(itemsDict.values())))
 
-	@intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
-	def handle_refresh_tagged_items_intent(self, message):
-		#to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
-		self.getTaggedItems()
-		dictLenght =len(self.shutterItemsDic)
-		self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
+    @intent_handler(IntentBuilder("ListItemsIntent").require("ListItemsKeyword"))
+    def handle_list_items_intent(self, message):
+        msg = self.getItemsFromDict("Shutters", self.shutterItemsDic)
+        self.speak_dialog('FoundItems', {'items': msg.strip()})
 
-	@intent_handler('shutter.open.intent')
-	def handle_shutter_open_intent(self, message):
-		messageItem = message.data.get('item')
-		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = message.data.get('value')
-		LOGGER.debug("WantedValue: %s" % (messageValue))
-  
-		if messageItem is None:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-			return
+    @intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
+    def handle_refresh_tagged_items_intent(self, message):
+        # to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
+        self.getTaggedItems()
+        dictLenght = len(self.shutterItemsDic)
+        self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
 
-		if messageValue is None:
-			messageValue = 0
-		else:
-			messageValue = int(messageValue)
-		
-		return self.move_shutter_to_value(messageItem, messageValue)
+    @intent_handler('shutter.open.intent')
+    def handle_shutter_open_intent(self, message):
+        messageItem = message.data.get('item')
+        LOGGER.debug("Item: %s" % (messageItem))
+        messageValue = message.data.get('value')
+        LOGGER.debug("WantedValue: %s" % (messageValue))
 
-	@intent_handler('shutter.close.intent')
-	def handle_shutter_close_intent(self, message):
-		messageItem = message.data.get('item')
-		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = message.data.get('value')
-		LOGGER.debug("WantedValue: %s" % (messageValue))
-  
-		if messageItem is None:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-			return
+        if messageItem is None:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
+            return
 
-		if messageValue is None:
-			messageValue = 100
-		else:
-			messageValue = int(messageValue)
-		
-		return self.move_shutter_to_value(messageItem, messageValue)
+        if messageValue is None:
+            messageValue = 0
+        else:
+            messageValue = int(messageValue)
 
-	def move_shutter_to_value(self, item, value):
-		self.currStatusItemsDic = dict()
+        return self.move_shutter_to_value(messageItem, messageValue)
 
-		unitOfMeasure = self.translate('Percentage')
-		self.currStatusItemsDic.update(self.shutterItemsDic)
+    @intent_handler('shutter.close.intent')
+    def handle_shutter_close_intent(self, message):
+        messageItem = message.data.get('item')
+        LOGGER.debug("Item: %s" % (messageItem))
+        messageValue = message.data.get('value')
+        LOGGER.debug("WantedValue: %s" % (messageValue))
 
-		ohItem = self.findItemName(self.currStatusItemsDic, item)
+        if messageItem is None:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
+            return
 
-		if ohItem != None:
-			currentItemStatus = int(self.getCurrentItemStatus(ohItem))
-			LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
+        if messageValue is None:
+            messageValue = 100
+        else:
+            messageValue = int(messageValue)
 
-			# Nothing to do, we simply inform
-			if currentItemStatus == value:
-				if currentItemStatus == 0:
-					self.speak_dialog('AlreadyOpen', {'item': item})
-				if currentItemStatus == 100:
-					self.speak_dialog('AlreadyClose', {'item': item})
-				else:
-					self.speak_dialog('AlreadyAtValue', {'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
-				return
+        return self.move_shutter_to_value(messageItem, messageValue)
 
-			# We update shutter to wanted value
-			statusCode = self.sendStatusToItem(ohItem, value)
-			if statusCode == 200 or statusCode == 202:
-				if currentItemStatus > value:
-					self.speak_dialog('OpenToValue', {'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
-				else:
-					self.speak_dialog('CloseToValue', {'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
-			elif statusCode == 404:
-				LOGGER.error("Some issues with the command execution! Item not found")
-				self.speak_dialog('ItemNotFoundError')
-			else:
-				LOGGER.error("Some issues with the command execution!")
-				self.speak_dialog('CommunicationError')
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
+    def move_shutter_to_value(self, item, value):
+        self.currStatusItemsDic = dict()
 
-	@intent_handler(IntentBuilder("WhatStatus_Intent").require("Status").require("Item"))
-	def handle_what_status_intent(self, message):
-		messageItem = message.data.get('Item')
-		LOGGER.debug("Item: %s" % (messageItem))
-  
-		if messageItem == None:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-			return False
-		
-		self.currStatusItemsDic = dict()
+        unitOfMeasure = self.translate('Percentage')
+        self.currStatusItemsDic.update(self.shutterItemsDic)
 
-		unitOfMeasure = self.translate('Percentage')
-		self.currStatusItemsDic.update(self.shutterItemsDic)
+        ohItem = self.findItemName(self.currStatusItemsDic, item)
 
-		ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
+        if ohItem != None:
+            currentItemStatus = int(self.getCurrentItemStatus(ohItem))
+            LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
 
-		if ohItem != None:
-			state = self.getCurrentItemStatus(ohItem)
-			if state == "0":
-				self.speak_dialog('OpenStatus', {'item': messageItem})
-			elif state == "100":
-				self.speak_dialog('CloseStatus', {'item': messageItem})
-			else:
-				self.speak_dialog('ClosePercentageStatus', {'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
-			return True
-		else:
-			LOGGER.error("Item not found!")
-			self.speak_dialog('ItemNotFoundError')
-			return False
+            # Nothing to do, we simply inform
+            if currentItemStatus == value:
+                if currentItemStatus == 0:
+                    self.speak_dialog('AlreadyOpen', {'item': item})
+                if currentItemStatus == 100:
+                    self.speak_dialog('AlreadyClose', {'item': item})
+                else:
+                    self.speak_dialog('AlreadyAtValue', {
+                                      'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
+                return
 
-	def sendStatusToItem(self, ohItem, status):
-		requestUrl = self.url+"/items/%s/state" % (ohItem)
-		req = requests.put(requestUrl, data=str(status), headers=self.command_headers)
+            # We update shutter to wanted value
+            statusCode = self.sendStatusToItem(ohItem, value)
+            if statusCode == 200 or statusCode == 202:
+                if currentItemStatus > value:
+                    self.speak_dialog('OpenToValue', {
+                                      'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
+                else:
+                    self.speak_dialog('CloseToValue', {
+                                      'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
+            elif statusCode == 404:
+                LOGGER.error(
+                    "Some issues with the command execution! Item not found")
+                self.speak_dialog('ItemNotFoundError')
+            else:
+                LOGGER.error("Some issues with the command execution!")
+                self.speak_dialog('CommunicationError')
+        else:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
 
-		return req.status_code
+    @intent_handler(IntentBuilder("WhatStatus_Intent").require("Status").require("Item"))
+    def handle_what_status_intent(self, message):
+        messageItem = message.data.get('Item')
+        LOGGER.debug("Item: %s" % (messageItem))
 
-	def sendCommandToItem(self, ohItem, command):
-		requestUrl = self.url+"/items/%s" % (ohItem)
-		req = requests.post(requestUrl, data=command, headers=self.command_headers)
+        if messageItem == None:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
+            return False
 
-		return req.status_code
+        self.currStatusItemsDic = dict()
 
-	def getCurrentItemStatus(self, ohItem):
-		requestUrl = self.url+"/items/%s/state" % (ohItem)
-		state = None
+        unitOfMeasure = self.translate('Percentage')
+        self.currStatusItemsDic.update(self.shutterItemsDic)
 
-		try:
-			req = requests.get(requestUrl, headers=self.command_headers)
+        ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
 
-			if req.status_code == 200:
-				state = req.text
-			else:
-				LOGGER.error("Some issues with the command execution!")
-				self.speak_dialog('CommunicationError')
+        if ohItem != None:
+            state = self.getCurrentItemStatus(ohItem)
+            if state == "0":
+                self.speak_dialog('OpenStatus', {'item': messageItem})
+            elif state == "100":
+                self.speak_dialog('CloseStatus', {'item': messageItem})
+            else:
+                self.speak_dialog('ClosePercentageStatus', {
+                                  'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
+            return True
+        else:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
+            return False
 
-		except KeyError:
-			pass
+    def sendStatusToItem(self, ohItem, status):
+        requestUrl = self.url+"/items/%s/state" % (ohItem)
+        req = requests.put(requestUrl, data=str(status),
+                           headers=self.command_headers)
 
-		return state
+        return req.status_code
 
-	def stop(self):
-		pass
+    def sendCommandToItem(self, ohItem, command):
+        requestUrl = self.url+"/items/%s" % (ohItem)
+        req = requests.post(requestUrl, data=command,
+                            headers=self.command_headers)
+
+        return req.status_code
+
+    def getCurrentItemStatus(self, ohItem):
+        requestUrl = self.url+"/items/%s/state" % (ohItem)
+        state = None
+
+        try:
+            req = requests.get(requestUrl, headers=self.command_headers)
+
+            if req.status_code == 200:
+                state = req.text
+            else:
+                LOGGER.error("Some issues with the command execution!")
+                self.speak_dialog('CommunicationError')
+
+        except KeyError:
+            pass
+
+        return state
+
+    def stop(self):
+        pass
+
 
 def create_skill():
     return openHABSkill()

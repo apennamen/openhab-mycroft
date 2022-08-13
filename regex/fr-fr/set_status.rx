@@ -1,2 +1,0 @@
-(?P<Command>ouvre|lève|baisse|ferme) à (?P<Value>.*) (pourcent|pourcents|%) (le|la|les) (?P<Item>.*)
-(?P<Command>ouvre|lève|baisse|ferme) (le|la|les) (?P<Item>.*) à (?P<Value>.*) (pourcent|pourcents|%)
