@@ -172,7 +172,7 @@ class openHABSkill(MycroftSkill):
         if messageValue is None:
             messageValue = 0
         else:
-            messageValue = int(messageValue)
+            messageValue = max(0, int(messageValue))
 
         return self.move_shutter_to_value(messageItem, messageValue)
 
@@ -191,7 +191,7 @@ class openHABSkill(MycroftSkill):
         if messageValue is None:
             messageValue = 100
         else:
-            messageValue = int(messageValue)
+            messageValue = min(int(messageValue), 100)
 
         return self.move_shutter_to_value(messageItem, messageValue)
 
