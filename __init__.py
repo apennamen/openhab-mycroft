@@ -115,7 +115,8 @@ class openHABSkill(MycroftSkill):
 			self.url = None
 
 	def getTaggedItems(self):
-		#find all the items tagged Lighting and Switchable from openHAB
+		#find all the items tagged from openHAB.
+		#supported tags: Lighting, Switchable, CurrentTemperature, Shutter...
 		#the labeled items are stored in dictionaries
 
 		self.lightingItemsDic = {}
