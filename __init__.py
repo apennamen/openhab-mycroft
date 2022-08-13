@@ -154,7 +154,7 @@ class openHABSkill(MycroftSkill):
 	def handle_set_status_intent(self, message):
 		messageItem = message.data.get('Item')
 		LOGGER.debug("Item: %s" % (messageItem))
-		messageValue = message.data.get('Value')
+		messageValue = int(message.data.get('Value'))
 		LOGGER.debug("WantedValue: %s" % (messageValue))
   
 		if messageItem == None:
@@ -177,7 +177,7 @@ class openHABSkill(MycroftSkill):
 				return
 
 			statusCode = self.sendStatusToItem(ohItem, messageValue)
-			if statusCode == 200:
+			if statusCode == 200 or statusCode == 202:
 				if currentItemStatus > messageValue:
 					self.speak_dialog('OpenToState', {'value': messageValue, 'item': messageItem, 'units_of_measurement': unitOfMeasure})
 				else:
@@ -206,7 +206,7 @@ class openHABSkill(MycroftSkill):
 
 		if ohItem != None:
 			statusCode = self.sendStatusToItem(ohItem, ohStatus)
-			if statusCode == 200:
+			if statusCode == 200 or statusCode == 202:
 				self.speak_dialog('OpenClose', {'command': command, 'item': messageItem})
 			elif statusCode == 404:
 				LOGGER.error("Some issues with the command execution!. Item not found")
@@ -251,7 +251,7 @@ class openHABSkill(MycroftSkill):
 
 	def sendStatusToItem(self, ohItem, status):
 		requestUrl = self.url+"/items/%s/state" % (ohItem)
-		req = requests.put(requestUrl, data=status, headers=self.command_headers)
+		req = requests.put(requestUrl, data=str(status), headers=self.command_headers)
 
 		return req.status_code
 
