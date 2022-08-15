@@ -219,7 +219,7 @@ class openHABSkill(MycroftSkill):
                 return
 
             # We update shutter to wanted value
-            statusCode = self.sendStatusToItem(ohItem, value)
+            statusCode = self.sendCommandToItem(ohItem, value)
             if statusCode == 200 or statusCode == 202:
                 if currentItemStatus > value:
                     self.speak_dialog('OpenToValue', {
