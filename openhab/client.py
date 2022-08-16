@@ -50,7 +50,7 @@ class OpenHabRestClient:
         requestUrl = self.url+"/items/%s/state" % (ohItem)
 
         try:
-            req = requests.get(requestUrl, headers=self.command_headers)
+            req = requests.get(requestUrl, headers={"Content-type": "text/plain"})
 
             assert req.status_code == 200, "Some issues retrieving current item state"
             

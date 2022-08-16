@@ -75,17 +75,10 @@ class OpenHabSkill(MycroftSkill):
             self.openhab_client = OpenHabRestClient(
                 self.get_config('host'), self.get_config('port'))
             self.speak_dialog('ConfigurationUpdated')
-            self.handle_refresh_tagged_items_intent()
+            self.handle_refresh_tagged_items_intent("")
         else:
             self.openhab_client = None
             self.speak_dialog('ConfigurationNeeded')
-
-    # def ask_for_item_update(self):
-    #     should_update_items = self.ask_yesno('AskForItemUpdate')
-    #     if should_update_items == "yes":
-    #         self.handle_refresh_tagged_items_intent()
-    #     elif should_update_items == "no":
-    #         self.speak_dialog('AdviceToRefreshItems')
             
 
     def handle_websettings_update(self):
