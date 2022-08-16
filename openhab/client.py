@@ -18,8 +18,7 @@ class OpenHabRestClient:
         try:
             req = requests.get(requestUrl, headers={
                                "Accept": "application/json"})
-            assert(req.status_code == 200,
-                   "Impossible to connect to Open Hab server")
+            assert req.status_code == 200, "Impossible to connect to Open Hab server"
 
             json_response = req.json()
             for x in range(0, len(json_response)):
@@ -53,7 +52,7 @@ class OpenHabRestClient:
         try:
             req = requests.get(requestUrl, headers=self.command_headers)
 
-            assert(req.status_code == 200, "Some issues retrieving current item state")
+            assert req.status_code == 200, "Some issues retrieving current item state"
             
             return req.text
 
