@@ -217,7 +217,7 @@ class OpenHabSkill(MycroftSkill):
         unitOfMeasure = self.translate('Percentage')
         try:
             # Convert to int to remove decimal parts
-            state = int(self.openhab_client.get_current_item_state(ohItem))
+            state = int(float(self.openhab_client.get_current_item_state(ohItem)))
             if state == 0:
                 self.speak_dialog('OpenStatus', {'item': messageItem})
             elif state == 100:
