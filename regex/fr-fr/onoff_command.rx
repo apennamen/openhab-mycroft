@@ -1,2 +1,0 @@
-(turn|switch|put) (?P<Command>on|off) (?P<Item>.*)
-(turn|switch|put) (?P<Item>.*) (?P<Command>on|off)

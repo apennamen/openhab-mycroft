@@ -1,2 +1,0 @@
-(set) (?P<Item>.*)(?: to )?(?P<BrightPercentage>\d+)(?: percent)?
-(dim|bright) (?P<Item>.*?)(?: by )?(?P<BrightPercentage>\d*)?(?: percent)?$
