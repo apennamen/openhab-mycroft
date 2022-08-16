@@ -18,9 +18,9 @@ from os.path import dirname
 from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
 from mycroft.util.log import getLogger
-from rapidfuzz import fuzz
 
 from .openhab.client import OpenHabRestClient
+from .openhab.store import OpenHabItemStore
 
 # v 0.1 - just switch on and switch off a fix light
 # v 0.2 - code review
@@ -46,11 +46,14 @@ LOGGER = getLogger(__name__)
 
 class OpenHabSkill(MycroftSkill):
 
+    #####################################
+    # LIFECYCLE METHODS AND CONFIG
+    #####################################
     def __init__(self):
         super(OpenHabSkill, self).__init__(name="openHABSkill")
 
         self.openhab_client = None
-        self.shutterItemsDic = dict()
+        self.oh_item_store = OpenHabItemStore()
 
     def initialize(self):
         supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
@@ -62,13 +65,11 @@ class OpenHabSkill(MycroftSkill):
 
         self.configure_openhab_client()
 
+        # used for Padatious intents like Shutters
         self.register_entity_file('item.entity')
         self.register_entity_file('value.entity')
 
         self.settings_change_callback = self.handle_websettings_update
-
-    def get_config(self, key):
-        return (self.settings.get(key) or self.config_core.get('openHABSkill', {}).get(key))
 
     def configure_openhab_client(self):
         if self.get_config('host') is not None and self.get_config('port') is not None:
@@ -79,52 +80,59 @@ class OpenHabSkill(MycroftSkill):
         else:
             self.openhab_client = None
             self.speak_dialog('ConfigurationNeeded')
-            
 
     def handle_websettings_update(self):
         self.configure_openhab_client()
 
-    def findItemName(self, itemDictionary, messageItem):
+    def get_config(self, key):
+        return (self.settings.get(key) or self.config_core.get('openHABSkill', {}).get(key))
 
-        bestScore = 0
-        score = 0
-        bestItem = None
+    def stop(self):
+        pass
 
-        try:
-            for itemName, itemLabel in list(itemDictionary.items()):
-                score = fuzz.ratio(messageItem, itemLabel,
-                                   score_cutoff=bestScore)
-                if score > bestScore:
-                    bestScore = score
-                    bestItem = itemName
-        except KeyError:
-            pass
-
-        return bestItem
-
-    def getItemsFromDict(self, typeStr, itemsDict):
-        if len(itemsDict) == 0:
-            return ""
-        else:
-            return "%s: %s" % (typeStr, ', '.join(list(itemsDict.values())))
-
+    #####################################
+    # GENERAL INTENTS
+    #####################################
     @intent_handler(IntentBuilder("ListItemsIntent").require("ListItemsKeyword"))
     def handle_list_items_intent(self, message):
-        msg = self.getItemsFromDict("Shutters", self.shutterItemsDic)
-        self.speak_dialog('FoundItems', {'items': msg.strip()})
+        self.speak_dialog(
+            'FoundItems', {'items': self.oh_item_store.print_items().strip()})
 
     @intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
     def handle_refresh_tagged_items_intent(self, message):
         # to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
         try:
-            self.shutterItemsDic = self.openhab_client.get_tagged_items()
-            dictLenght = len(self.shutterItemsDic)
-            self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
+            self.oh_item_store = self.openhab_client.get_tagged_items()
+            self.speak_dialog('RefreshTaggedItems', {
+                              'number_item': self.oh_item_store.items_count()})
         except Exception:
             self.speak_dialog('GetItemsListError')
             self.speak_dialog('CheckOpenHabServer')
-                
 
+    @intent_handler(IntentBuilder("WhatStatus_Intent").require("Status").require("Item"))
+    def handle_what_status_intent(self, message):
+        messageItem = message.data.get('Item')
+        LOGGER.debug("Item: %s" % (messageItem))
+
+        if messageItem == None:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
+            return False
+
+        (ohItem, ohItemType) = self.oh_item_store.find_item_name(messageItem)
+
+        if ohItem != None:
+            if ohItemType == "Shutter":
+                return self.handle_what_status_rollershutter(ohItem, messageItem)
+            else:
+                self.speak_dialog('ItemTypeNotHandled')
+        else:
+            LOGGER.error("Item not found!")
+            self.speak_dialog('ItemNotFoundError')
+
+    #####################################
+    # ROLLERSHUTTER INTENTS
+    #####################################
     @intent_handler('shutter.open.intent')
     def handle_shutter_open_intent(self, message):
         messageItem = message.data.get('item')
@@ -164,16 +172,14 @@ class OpenHabSkill(MycroftSkill):
         return self.move_shutter_to_value(messageItem, messageValue)
 
     def move_shutter_to_value(self, item, value):
-        self.currStatusItemsDic = dict()
-
-        unitOfMeasure = self.translate('Percentage')
-        self.currStatusItemsDic.update(self.shutterItemsDic)
-
-        ohItem = self.findItemName(self.currStatusItemsDic, item)
+        ohItem = self.oh_item_store.find_item_name(item, "Shutter")
 
         if ohItem != None:
-            currentItemStatus = int(self.getCurrentItemStatus(ohItem))
+            currentItemStatus = int(
+                self.openhab_client.get_current_item_state(ohItem))
             LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
+
+            unitOfMeasure = self.translate('Percentage')
 
             # Nothing to do, we simply inform
             if currentItemStatus == value:
@@ -187,8 +193,9 @@ class OpenHabSkill(MycroftSkill):
                 return
 
             # We update shutter to wanted value
-            statusCode = self.openhab_client.send_command_to_item(ohItem, value)
-            if statusCode == 200 or statusCode == 202:
+            statusCode = self.openhab_client.send_command_to_item(
+                ohItem, value)
+            if statusCode == 200:
                 if currentItemStatus > value:
                     self.speak_dialog('OpenToValue', {
                                       'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
@@ -197,7 +204,7 @@ class OpenHabSkill(MycroftSkill):
                                       'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
             elif statusCode == 404:
                 LOGGER.error(
-                    "Some issues with the command execution! Item not found")
+                    "Some issues with the command execution! Item not found in OpenHab")
                 self.speak_dialog('ItemNotFoundError')
             else:
                 LOGGER.error("Some issues with the command execution!")
@@ -206,42 +213,20 @@ class OpenHabSkill(MycroftSkill):
             LOGGER.error("Item not found!")
             self.speak_dialog('ItemNotFoundError')
 
-    @intent_handler(IntentBuilder("WhatStatus_Intent").require("Status").require("Item"))
-    def handle_what_status_intent(self, message):
-        messageItem = message.data.get('Item')
-        LOGGER.debug("Item: %s" % (messageItem))
-
-        if messageItem == None:
-            LOGGER.error("Item not found!")
-            self.speak_dialog('ItemNotFoundError')
-            return False
-
-        self.currStatusItemsDic = dict()
-
+    def handle_what_status_rollershutter(self, ohItem, messageItem):
         unitOfMeasure = self.translate('Percentage')
-        self.currStatusItemsDic.update(self.shutterItemsDic)
-
-        ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
-
-        if ohItem != None:
-            try:
-                state = self.openhab_client.get_current_item_state(ohItem)
-                if state == "0":
-                    self.speak_dialog('OpenStatus', {'item': messageItem})
-                elif state == "100":
-                    self.speak_dialog('CloseStatus', {'item': messageItem})
-                else:
-                    self.speak_dialog('ClosePercentageStatus', {
-                                    'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
-            except Exception:
-                LOGGER.error("Error retrieving current item state")
-                self.speak_dialog('CommunicationError')
-        else:
-            LOGGER.error("Item not found!")
-            self.speak_dialog('ItemNotFoundError')
-
-    def stop(self):
-        pass
+        try:
+            state = self.openhab_client.get_current_item_state(ohItem)
+            if state == "0":
+                self.speak_dialog('OpenStatus', {'item': messageItem})
+            elif state == "100":
+                self.speak_dialog('CloseStatus', {'item': messageItem})
+            else:
+                self.speak_dialog('ClosePercentageStatus', {
+                    'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
+        except Exception:
+            LOGGER.error("Error retrieving current item state")
+            self.speak_dialog('CommunicationError')
 
 
 def create_skill():
