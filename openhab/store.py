@@ -12,7 +12,7 @@ class OpenHabItemStore:
         for tag in self.supported_tags():
             self.items[tag] = dict()
 
-    def supported_tags():
+    def supported_tags(self):
         return ["Shutter"]
 
     def print_items(self):
