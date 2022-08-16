@@ -19,8 +19,7 @@ from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
 from mycroft.util.log import getLogger
 
-from .openhab.client import OpenHabRestClient
-from .openhab.store import OpenHabItemStore
+from .openhab import OpenHabRestClient, OpenHabItemStore
 
 # v 0.1 - just switch on and switch off a fix light
 # v 0.2 - code review
