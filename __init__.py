@@ -20,8 +20,7 @@ from mycroft import MycroftSkill, intent_handler
 from mycroft.util.log import getLogger
 from rapidfuzz import fuzz
 
-import requests
-import json
+from openhab.client import OpenHabRestClient
 
 # v 0.1 - just switch on and switch off a fix light
 # v 0.2 - code review
@@ -45,32 +44,23 @@ __author__ = 'mortommy'
 LOGGER = getLogger(__name__)
 
 
-class openHABSkill(MycroftSkill):
+class OpenHabSkill(MycroftSkill):
 
     def __init__(self):
-        super(openHABSkill, self).__init__(name="openHABSkill")
+        super(OpenHabSkill, self).__init__(name="openHABSkill")
 
-        self.command_headers = {"Content-type": "text/plain"}
-
-        self.polling_headers = {"Accept": "application/json"}
-
-        self.url = None
+        self.openhab_client = None
         self.shutterItemsDic = dict()
 
     def initialize(self):
         supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
 
         if self.lang not in supported_languages:
-            self.log.warning("Unsupported language for " +
-                             self.name + ", shutting down skill.")
+            LOGGER.error("Unsupported language " + self.lang + " for " +
+                         self.name + ", shutting down skill.")
             self.shutdown()
 
-        self.handle_websettings_update()
-
-        if self.url is not None:
-            self.getTaggedItems()
-        else:
-            self.speak_dialog('ConfigurationNeeded')
+        self.configure_openhab_client()
 
         self.register_entity_file('item.entity')
         self.register_entity_file('value.entity')
@@ -80,46 +70,26 @@ class openHABSkill(MycroftSkill):
     def get_config(self, key):
         return (self.settings.get(key) or self.config_core.get('openHABSkill', {}).get(key))
 
-    def handle_websettings_update(self):
+    def configure_openhab_client(self):
         if self.get_config('host') is not None and self.get_config('port') is not None:
-            self.url = "http://%s:%s/rest" % (
+            self.openhab_client = OpenHabRestClient(
                 self.get_config('host'), self.get_config('port'))
-            self.getTaggedItems()
+            self.speak_dialog('ConfigurationUpdated')
+            self.ask_for_item_update()
         else:
-            self.url = None
-
-    def getTaggedItems(self):
-        # find all the items tagged from openHAB.
-        # supported tags: Lighting, Switchable, CurrentTemperature, Shutter...
-        # the labeled items are stored in dictionaries
-
-        self.shutterItemsDic = {}
-
-        if self.url == None:
-            LOGGER.error("Configuration needed!")
+            self.openhab_client = None
             self.speak_dialog('ConfigurationNeeded')
-        else:
-            requestUrl = self.url+"/items?recursive=false"
 
-            try:
-                req = requests.get(requestUrl, headers=self.polling_headers)
-                if req.status_code == 200:
-                    json_response = req.json()
-                    for x in range(0, len(json_response)):
-                        if ("Shutter" in json_response[x]['tags']):
-                            self.shutterItemsDic.update(
-                                {json_response[x]['name']: json_response[x]['label']})
-                        else:
-                            pass
-                else:
-                    LOGGER.error("Some issues with the command execution!")
-                    self.speak_dialog('GetItemsListError')
+    def ask_for_item_update(self):
+        should_update_items = self.ask_yesno('AskForItemUpdate')
+        if should_update_items == "yes":
+            self.handle_refresh_tagged_items_intent()
+        elif should_update_items == "no":
+            self.speak_dialog('AdviceToRefreshItems-')
+            
 
-            except KeyError:
-                pass
-            except Exception:
-                LOGGER.error("Some issues with the command execution!")
-                self.speak_dialog('GetItemsListError')
+    def handle_websettings_update(self):
+        self.configure_openhab_client()
 
     def findItemName(self, itemDictionary, messageItem):
 
@@ -153,9 +123,14 @@ class openHABSkill(MycroftSkill):
     @intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
     def handle_refresh_tagged_items_intent(self, message):
         # to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
-        self.getTaggedItems()
-        dictLenght = len(self.shutterItemsDic)
-        self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
+        try:
+            self.shutterItemsDic = self.openhab_client.get_tagged_items()
+            dictLenght = len(self.shutterItemsDic)
+            self.speak_dialog('RefreshTaggedItems', {'number_item': dictLenght})
+        except Exception:
+            self.speak_dialog('GetItemsListError')
+            self.speak_dialog('CheckOpenHabServer')
+                
 
     @intent_handler('shutter.open.intent')
     def handle_shutter_open_intent(self, message):
@@ -219,7 +194,7 @@ class openHABSkill(MycroftSkill):
                 return
 
             # We update shutter to wanted value
-            statusCode = self.sendCommandToItem(ohItem, value)
+            statusCode = self.openhab_client.send_command_to_item(ohItem, value)
             if statusCode == 200 or statusCode == 202:
                 if currentItemStatus > value:
                     self.speak_dialog('OpenToValue', {
@@ -256,55 +231,25 @@ class openHABSkill(MycroftSkill):
         ohItem = self.findItemName(self.currStatusItemsDic, messageItem)
 
         if ohItem != None:
-            state = self.getCurrentItemStatus(ohItem)
-            if state == "0":
-                self.speak_dialog('OpenStatus', {'item': messageItem})
-            elif state == "100":
-                self.speak_dialog('CloseStatus', {'item': messageItem})
-            else:
-                self.speak_dialog('ClosePercentageStatus', {
-                                  'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
-            return True
+            try:
+                state = self.openhab_client.get_current_item_state(ohItem)
+                if state == "0":
+                    self.speak_dialog('OpenStatus', {'item': messageItem})
+                elif state == "100":
+                    self.speak_dialog('CloseStatus', {'item': messageItem})
+                else:
+                    self.speak_dialog('ClosePercentageStatus', {
+                                    'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
+            except Exception:
+                LOGGER.error("Error retrieving current item state")
+                self.speak_dialog('CommunicationError')
         else:
             LOGGER.error("Item not found!")
             self.speak_dialog('ItemNotFoundError')
-            return False
-
-    def sendStatusToItem(self, ohItem, status):
-        requestUrl = self.url+"/items/%s/state" % (ohItem)
-        req = requests.put(requestUrl, data=str(status),
-                           headers=self.command_headers)
-
-        return req.status_code
-
-    def sendCommandToItem(self, ohItem, command):
-        requestUrl = self.url+"/items/%s" % (ohItem)
-        req = requests.post(requestUrl, data=command,
-                            headers=self.command_headers)
-
-        return req.status_code
-
-    def getCurrentItemStatus(self, ohItem):
-        requestUrl = self.url+"/items/%s/state" % (ohItem)
-        state = None
-
-        try:
-            req = requests.get(requestUrl, headers=self.command_headers)
-
-            if req.status_code == 200:
-                state = req.text
-            else:
-                LOGGER.error("Some issues with the command execution!")
-                self.speak_dialog('CommunicationError')
-
-        except KeyError:
-            pass
-
-        return state
 
     def stop(self):
         pass
 
 
 def create_skill():
-    return openHABSkill()
+    return OpenHabSkill()
