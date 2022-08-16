@@ -119,7 +119,7 @@ class OpenHabSkill(MycroftSkill):
             self.speak_dialog('ItemNotFoundError')
             return False
 
-        (ohItem, ohItemType) = self.oh_item_store.find_item_name(messageItem)
+        (ohItem, ohItemType) = self.oh_item_store.find_item_name_and_type(messageItem)
 
         if ohItem != None:
             if ohItemType == "Shutter":
