@@ -61,7 +61,7 @@ class OpenHabItemStore:
                                    score_cutoff=best_score)
                 if score > best_score:
                     best_score = score
-                    best_item = (item_name, item_type)
+                    best_item = item_name
         except KeyError:
             pass
 
