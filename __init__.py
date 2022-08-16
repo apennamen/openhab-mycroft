@@ -75,7 +75,7 @@ class OpenHabSkill(MycroftSkill):
             self.openhab_client = OpenHabRestClient(
                 self.get_config('host'), self.get_config('port'))
             self.speak_dialog('ConfigurationUpdated')
-            self.handle_refresh_tagged_items_intent("")
+            self.handle_refresh_tagged_items_intent('')
         else:
             self.openhab_client = None
             self.speak_dialog('ConfigurationNeeded')
