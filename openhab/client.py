@@ -41,7 +41,7 @@ class OpenHabRestClient:
 
     def send_command_to_item(self, ohItem, command):
         requestUrl = self.url+"/items/%s" % (ohItem)
-        req = requests.post(requestUrl, data=command,
+        req = requests.post(requestUrl, data=str(command),
                             headers={"Content-type": "text/plain"})
         return req.status_code
 

@@ -216,10 +216,11 @@ class OpenHabSkill(MycroftSkill):
     def handle_what_status_rollershutter(self, ohItem, messageItem):
         unitOfMeasure = self.translate('Percentage')
         try:
-            state = self.openhab_client.get_current_item_state(ohItem)
-            if state == "0":
+            # Convert to int to remove decimal parts
+            state = int(self.openhab_client.get_current_item_state(ohItem))
+            if state == 0:
                 self.speak_dialog('OpenStatus', {'item': messageItem})
-            elif state == "100":
+            elif state == 100:
                 self.speak_dialog('CloseStatus', {'item': messageItem})
             else:
                 self.speak_dialog('ClosePercentageStatus', {
