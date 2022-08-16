@@ -20,7 +20,7 @@ from mycroft import MycroftSkill, intent_handler
 from mycroft.util.log import getLogger
 from rapidfuzz import fuzz
 
-from openhab.client import OpenHabRestClient
+from .openhab.client import OpenHabRestClient
 
 # v 0.1 - just switch on and switch off a fix light
 # v 0.2 - code review
