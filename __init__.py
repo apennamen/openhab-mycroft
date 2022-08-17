@@ -40,8 +40,6 @@ from .openhab import OpenHabRestClient, OpenHabItemStore
 
 __author__ = 'mortommy'
 
-LOGGER = getLogger(__name__)
-
 
 class OpenHabSkill(MycroftSkill):
 
@@ -58,8 +56,8 @@ class OpenHabSkill(MycroftSkill):
         supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
 
         if self.lang not in supported_languages:
-            LOGGER.error("Unsupported language " + self.lang + " for " +
-                         self.name + ", shutting down skill.")
+            self.log.error("Unsupported language " + self.lang + " for " +
+                           self.name + ", shutting down skill.")
             self.shutdown()
 
         self.configure_openhab_client()
@@ -111,24 +109,23 @@ class OpenHabSkill(MycroftSkill):
     @intent_handler(IntentBuilder("WhatStatus_Intent").require("Status").require("Item"))
     def handle_what_status_intent(self, message):
         messageItem = message.data.get('Item')
-        LOGGER.debug("Item: %s" % (messageItem))
+        self.log.debug("Item: %s" % (messageItem))
 
         if messageItem is None:
-            LOGGER.error("Item not found!")
+            self.log.error("Item not found!")
             self.speak_dialog('error.item.notfound')
             return False
 
         (ohItem, ohItemType) = self.oh_item_store.find_item_name_and_type(messageItem)
 
         if ohItem is None:
-            LOGGER.info("Item %s not found!" % (messageItem))
+            self.log.info("Item %s not found!" % (messageItem))
             return self.speak_dialog('error.item.notfound')
-            
+
         if ohItemType == "Shutter":
             return self.handle_what_status_rollershutter(ohItem, messageItem)
         else:
             self.speak_dialog('error.ItemTypeNotHandled')
-            
 
     #####################################
     # ROLLERSHUTTER INTENTS
@@ -136,12 +133,12 @@ class OpenHabSkill(MycroftSkill):
     @intent_handler('shutter.open.intent')
     def handle_shutter_open_intent(self, message):
         messageItem = message.data.get('item')
-        LOGGER.debug("Item: %s" % (messageItem))
+        self.log.debug("Item: %s" % (messageItem))
         messageValue = message.data.get('value')
-        LOGGER.debug("WantedValue: %s" % (messageValue))
+        self.log.debug("WantedValue: %s" % (messageValue))
 
         if messageItem is None:
-            LOGGER.info("Item %s not found!" % (messageItem))
+            self.log.info("Item %s not found!" % (messageItem))
             self.speak_dialog('error.item.notfound')
             return
 
@@ -155,12 +152,12 @@ class OpenHabSkill(MycroftSkill):
     @intent_handler('shutter.close.intent')
     def handle_shutter_close_intent(self, message):
         messageItem = message.data.get('item')
-        LOGGER.debug("Item: %s" % (messageItem))
+        self.log.debug("Item: %s" % (messageItem))
         messageValue = message.data.get('value')
-        LOGGER.debug("WantedValue: %s" % (messageValue))
+        self.log.debug("WantedValue: %s" % (messageValue))
 
         if messageItem is None:
-            LOGGER.info("Item %s not found!" % (messageItem))
+            self.log.info("Item %s not found!" % (messageItem))
             self.speak_dialog('error.item.notfound')
             return
 
@@ -175,12 +172,12 @@ class OpenHabSkill(MycroftSkill):
         ohItem = self.oh_item_store.find_item_name(item, "Shutter")
 
         if ohItem is None:
-            LOGGER.info("Item %s not found!" % (item))
+            self.log.info("Item %s not found!" % (item))
             return self.speak_dialog('error.item.notfound')
 
         currentItemStatus = int(
             self.openhab_client.get_current_item_state(ohItem))
-        LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
+        self.log.debug("CurrentValue: %s" % (currentItemStatus))
 
         unitOfMeasure = self.translate('Percentage')
 
@@ -203,12 +200,12 @@ class OpenHabSkill(MycroftSkill):
                 'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
 
         if statusCode == 404:
-            LOGGER.error(
+            self.log.error(
                 "Item not found in OpenHab REST API")
             return self.speak_dialog('error.item.notfound')
 
         # statusCode must be an error status (40x, 50x...)
-        LOGGER.error("Some issues with the command execution")
+        self.log.error("Some issues with the command execution")
         return self.speak_dialog('error.communication')
 
     def handle_what_status_rollershutter(self, ohItem, messageItem):
@@ -224,7 +221,7 @@ class OpenHabSkill(MycroftSkill):
             return self.speak_dialog('status.close.percentage', {
                 'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
         except Exception:
-            LOGGER.error("Error retrieving current item state")
+            self.log.error("Error retrieving current item state")
             self.speak_dialog('error.communication')
 
 
