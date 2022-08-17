@@ -113,21 +113,22 @@ class OpenHabSkill(MycroftSkill):
         messageItem = message.data.get('Item')
         LOGGER.debug("Item: %s" % (messageItem))
 
-        if messageItem == None:
+        if messageItem is None:
             LOGGER.error("Item not found!")
             self.speak_dialog('error.item.notfound')
             return False
 
         (ohItem, ohItemType) = self.oh_item_store.find_item_name_and_type(messageItem)
 
-        if ohItem != None:
-            if ohItemType == "Shutter":
-                return self.handle_what_status_rollershutter(ohItem, messageItem)
-            else:
-                self.speak_dialog('error.ItemTypeNotHandled')
+        if ohItem is None:
+            LOGGER.info("Item %s not found!" % (messageItem))
+            return self.speak_dialog('error.item.notfound')
+            
+        if ohItemType == "Shutter":
+            return self.handle_what_status_rollershutter(ohItem, messageItem)
         else:
-            LOGGER.error("Item not found!")
-            self.speak_dialog('error.item.notfound')
+            self.speak_dialog('error.ItemTypeNotHandled')
+            
 
     #####################################
     # ROLLERSHUTTER INTENTS
@@ -140,7 +141,7 @@ class OpenHabSkill(MycroftSkill):
         LOGGER.debug("WantedValue: %s" % (messageValue))
 
         if messageItem is None:
-            LOGGER.error("Item not found!")
+            LOGGER.info("Item %s not found!" % (messageItem))
             self.speak_dialog('error.item.notfound')
             return
 
@@ -159,7 +160,7 @@ class OpenHabSkill(MycroftSkill):
         LOGGER.debug("WantedValue: %s" % (messageValue))
 
         if messageItem is None:
-            LOGGER.error("Item not found!")
+            LOGGER.info("Item %s not found!" % (messageItem))
             self.speak_dialog('error.item.notfound')
             return
 
@@ -173,57 +174,55 @@ class OpenHabSkill(MycroftSkill):
     def move_shutter_to_value(self, item, value):
         ohItem = self.oh_item_store.find_item_name(item, "Shutter")
 
-        if ohItem != None:
-            currentItemStatus = int(
-                self.openhab_client.get_current_item_state(ohItem))
-            LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
+        if ohItem is None:
+            LOGGER.info("Item %s not found!" % (item))
+            return self.speak_dialog('error.item.notfound')
 
-            unitOfMeasure = self.translate('Percentage')
+        currentItemStatus = int(
+            self.openhab_client.get_current_item_state(ohItem))
+        LOGGER.debug("CurrentValue: %s" % (currentItemStatus))
 
-            # Nothing to do, we simply inform
-            if currentItemStatus == value:
-                if currentItemStatus == 0:
-                    self.speak_dialog('status.AlreadyOpen', {'item': item})
-                if currentItemStatus == 100:
-                    self.speak_dialog('status.AlreadyClose', {'item': item})
-                else:
-                    self.speak_dialog('status.AlreadyAtValue', {
-                                      'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
-                return
+        unitOfMeasure = self.translate('Percentage')
 
-            # We update shutter to wanted value
-            statusCode = self.openhab_client.send_command_to_item(
-                ohItem, value)
-            if statusCode == 200:
-                if currentItemStatus > value:
-                    self.speak_dialog('shutter.OpenToValue', {
-                                      'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
-                else:
-                    self.speak_dialog('shutter.CloseToValue', {
-                                      'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
-            elif statusCode == 404:
-                LOGGER.error(
-                    "Some issues with the command execution! Item not found in OpenHab")
-                self.speak_dialog('error.item.notfound')
-            else:
-                LOGGER.error("Some issues with the command execution!")
-                self.speak_dialog('error.communication')
-        else:
-            LOGGER.error("Item not found!")
-            self.speak_dialog('error.item.notfound')
+        # Nothing to do, we simply inform
+        if currentItemStatus == value:
+            if currentItemStatus == 0:
+                return self.speak_dialog('status.AlreadyOpen', {'item': item})
+            if currentItemStatus == 100:
+                return self.speak_dialog('status.AlreadyClose', {'item': item})
+            return self.speak_dialog('status.AlreadyAtValue', {
+                'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
+
+        # We update shutter to wanted value
+        statusCode = self.openhab_client.send_command_to_item(ohItem, value)
+        if statusCode == 200:
+            if currentItemStatus > value:
+                return self.speak_dialog('shutter.OpenToValue', {
+                    'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
+            return self.speak_dialog('shutter.CloseToValue', {
+                'value': value, 'item': item, 'units_of_measurement': unitOfMeasure})
+
+        if statusCode == 404:
+            LOGGER.error(
+                "Item not found in OpenHab REST API")
+            return self.speak_dialog('error.item.notfound')
+
+        # statusCode must be an error status (40x, 50x...)
+        LOGGER.error("Some issues with the command execution")
+        return self.speak_dialog('error.communication')
 
     def handle_what_status_rollershutter(self, ohItem, messageItem):
         unitOfMeasure = self.translate('Percentage')
         try:
             # Convert to int to remove decimal parts
-            state = int(float(self.openhab_client.get_current_item_state(ohItem)))
+            state = int(
+                float(self.openhab_client.get_current_item_state(ohItem)))
             if state == 0:
-                self.speak_dialog('status.open', {'item': messageItem})
-            elif state == 100:
-                self.speak_dialog('status.close', {'item': messageItem})
-            else:
-                self.speak_dialog('status.close.percentage', {
-                    'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
+                return self.speak_dialog('status.open', {'item': messageItem})
+            if state == 100:
+                return self.speak_dialog('status.close', {'item': messageItem})
+            return self.speak_dialog('status.close.percentage', {
+                'item': messageItem, 'value': state, 'units_of_measurement': unitOfMeasure})
         except Exception:
             LOGGER.error("Error retrieving current item state")
             self.speak_dialog('error.communication')
