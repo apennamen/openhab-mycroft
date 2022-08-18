@@ -175,8 +175,9 @@ class OpenHabSkill(MycroftSkill):
             self.log.info("Item %s not found!" % (item))
             return self.speak_dialog('error.item.notfound')
 
+        # Float conversion necessary to deal with groups of Shutters
         currentItemStatus = int(
-            self.openhab_client.get_current_item_state(ohItem))
+            float(self.openhab_client.get_current_item_state(ohItem)))
         self.log.debug("CurrentValue: %s" % (currentItemStatus))
 
         unitOfMeasure = self.translate('Percentage')
@@ -212,6 +213,7 @@ class OpenHabSkill(MycroftSkill):
         unitOfMeasure = self.translate('Percentage')
         try:
             # Convert to int to remove decimal parts
+            # Float conversion necessary to deal with groups of Shutters
             state = int(
                 float(self.openhab_client.get_current_item_state(ohItem)))
             if state == 0:
