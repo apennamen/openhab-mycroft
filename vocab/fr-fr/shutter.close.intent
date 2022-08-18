@@ -1,2 +1,2 @@
-(baisse|ferme) le {item} à {value} (pourcents|%|pourcent)
-(baisse|ferme) le {item}
+(baisse|ferme) (le|les) {item} à {value} (pourcents|%|pourcent)
+(baisse|ferme) (le|les) {item}

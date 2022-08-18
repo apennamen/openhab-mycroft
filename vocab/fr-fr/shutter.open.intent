@@ -1,2 +1,2 @@
-(ouvre|lève) le {item} à {value} (pourcents|%|pourcent)
-(ouvre|lève) le {item}
+(ouvre|lève) (le|les) {item} à {value} (pourcents|%|pourcent)
+(ouvre|lève) (le|les) {item}
