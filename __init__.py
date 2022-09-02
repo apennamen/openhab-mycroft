@@ -17,9 +17,8 @@ from os.path import dirname
 
 from adapt.intent import IntentBuilder
 from mycroft import MycroftSkill, intent_handler
-from mycroft.util.log import getLogger
 
-from .openhab import OpenHabRestClient, OpenHabItemStore
+from .openhab import OpenHabClient
 
 # v 0.1 - just switch on and switch off a fix light
 # v 0.2 - code review
@@ -37,7 +36,6 @@ from .openhab import OpenHabRestClient, OpenHabItemStore
 # v 1.4 - support spanish
 # v 1.5 - support to 19
 
-
 __author__ = 'mortommy'
 
 
@@ -50,7 +48,6 @@ class OpenHabSkill(MycroftSkill):
         super(OpenHabSkill, self).__init__(name="openHABSkill")
 
         self.openhab_client = None
-        self.oh_item_store = OpenHabItemStore()
 
     def initialize(self):
         supported_languages = ["en-us", "it-it", "de-de", "es-es", "fr-fr"]
@@ -70,10 +67,9 @@ class OpenHabSkill(MycroftSkill):
 
     def configure_openhab_client(self):
         if self.get_config('host') is not None and self.get_config('port') is not None:
-            self.openhab_client = OpenHabRestClient(
+            self.openhab_client = OpenHabClient(
                 self.get_config('host'), self.get_config('port'))
             self.speak_dialog('config.ConfigurationUpdated')
-            self.handle_refresh_tagged_items_intent('')
         else:
             self.openhab_client = None
             self.speak_dialog('config.ConfigurationNeeded')
@@ -93,15 +89,15 @@ class OpenHabSkill(MycroftSkill):
     @intent_handler(IntentBuilder("ListItemsIntent").require("ListItemsKeyword"))
     def handle_list_items_intent(self, message):
         self.speak_dialog(
-            'items.found', {'items': self.oh_item_store.print_items().strip()})
+            'items.found', {'items': self.openhab_client.print_items().strip()})
 
     @intent_handler(IntentBuilder("RefreshTaggedItemsIntent").require("RefreshTaggedItemsKeyword"))
     def handle_refresh_tagged_items_intent(self, message):
         # to refresh the openHAB items labeled list we use an intent, we can ask Mycroft to make the refresh
         try:
-            self.oh_item_store = self.openhab_client.get_tagged_items()
+            items_count = self.openhab_client.refresh_cached_items()
             self.speak_dialog('items.RefreshTaggedItems', {
-                              'number_item': self.oh_item_store.items_count()})
+                              'number_item': items_count})
         except Exception:
             self.speak_dialog('error.GetItemsListError')
             self.speak_dialog('config.CheckOpenHabServer')
@@ -116,7 +112,7 @@ class OpenHabSkill(MycroftSkill):
             self.speak_dialog('error.item.notfound')
             return False
 
-        (ohItem, ohItemType) = self.oh_item_store.find_item_name_and_type(messageItem)
+        (ohItem, ohItemType) = self.openhab_client.find_item_name_and_type(messageItem)
 
         if ohItem is None:
             self.log.info("Item %s not found!" % (messageItem))
@@ -169,7 +165,7 @@ class OpenHabSkill(MycroftSkill):
         return self.move_shutter_to_value(messageItem, messageValue)
 
     def move_shutter_to_value(self, item, value):
-        ohItem = self.oh_item_store.find_item_name(item, "Shutter")
+        (ohItem, _) = self.openhab_client.find_shutter_item_name(item)
 
         if ohItem is None:
             self.log.info("Item %s not found!" % (item))

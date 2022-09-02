@@ -1,2 +1,1 @@
-from .client import OpenHabRestClient
-from .store import OpenHabItemStore
+from .client import OpenHabClient
