@@ -234,6 +234,7 @@ class OpenHabSkill(MycroftSkill):
             return self.speak_dialog('error.room.notunderstood')
 
         ohItem = self.openhab_client.find_temperature_item_name(room)
+        self.log.debug("Corresponding OH item %s" % ohItem)
         
         if ohItem is None:
             return self.speak_dialog('error.item.notfound')
