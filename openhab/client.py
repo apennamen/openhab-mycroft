@@ -53,5 +53,9 @@ class OpenHabClient:
         (ohItem, _) = self.oh_item_store.find_item_of_type(message_item, "TemperatureSensor")
         return ohItem
     
+    def find_humidity_item_name(self, message_item):
+        (ohItem, _) = self.oh_item_store.find_item_of_type(message_item, "HumiditySensor")
+        return ohItem
+    
     def print_items(self):
         return self.oh_item_store.print_items()

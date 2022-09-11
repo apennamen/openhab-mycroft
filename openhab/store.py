@@ -22,7 +22,7 @@ class OpenHabItemStore:
                     pass
 
     def supported_tags(self):
-        return ["Shutter", "TemperatureSensor"]
+        return ["Shutter", "TemperatureSensor", "HumiditySensor"]
 
     def print_items(self):
         if self.items_count() == 0:
