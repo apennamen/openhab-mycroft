@@ -46,10 +46,12 @@ class OpenHabClient:
         return self.oh_item_store.find_item(message_item)
     
     def find_shutter_item_name(self, message_item):
-        return self.oh_item_store.find_item_of_type(message_item, "Shutter")
+        (ohItem, _) = self.oh_item_store.find_item_of_type(message_item, "Shutter")
+        return ohItem
     
     def find_temperature_item_name(self, message_item):
-        return self.oh_item_store.find_item_of_type(message_item, "TemperatureSensor")
+        (ohItem, _) = self.oh_item_store.find_item_of_type(message_item, "TemperatureSensor")
+        return ohItem
     
     def print_items(self):
         return self.oh_item_store.print_items()

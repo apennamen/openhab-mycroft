@@ -28,8 +28,11 @@ class OpenHabItemStore:
         if self.items_count() == 0:
             return ""
 
+        result = ""
         for item_type in self.items.keys():
-            return "%s: %s" % (item_type, ', '.join(list(self.items[item_type].values())))
+            result += "%s: %s." % (item_type, ', '.join(list(self.items[item_type].values())))
+        
+        return result
 
     def items_count(self):
         count = 0

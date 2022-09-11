@@ -165,7 +165,7 @@ class OpenHabSkill(MycroftSkill):
         return self.move_shutter_to_value(messageItem, messageValue)
 
     def move_shutter_to_value(self, item, value):
-        (ohItem, _) = self.openhab_client.find_shutter_item_name(item)
+        ohItem = self.openhab_client.find_shutter_item_name(item)
 
         if ohItem is None:
             self.log.info("Item %s not found!" % (item))
