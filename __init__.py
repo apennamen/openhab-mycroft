@@ -222,6 +222,30 @@ class OpenHabSkill(MycroftSkill):
             self.log.error("Error retrieving current item state")
             self.speak_dialog('error.communication')
 
+    #####################################
+    # TEMPERATURE INTENTS
+    #####################################
+    @intent_handler('temperature.status.intent')
+    def handle_what_temperature(self, message):
+        room = message.data.get('room')
+        self.log.debug("Asked temperature for room %s" % room)
+        
+        if room is None:
+            return self.speak_dialog('error.room.notunderstood')
+
+        ohItem = self.openhab_client.find_temperature_item_name(room)
+        
+        if ohItem is None:
+            return self.speak_dialog('error.item.notfound')
+        
+        try:
+            state = self.openhab_client.get_current_item_state(ohItem)
+            
+            return self.speak_dialog('temperature.status', { 'room': room, 'temperature': state })
+        except Exception:
+            self.log.error("Error retrieving current item state")
+            self.speak_dialog('error.communication')
+            
 
 def create_skill():
     return OpenHabSkill()
